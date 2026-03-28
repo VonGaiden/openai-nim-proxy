@@ -74,7 +74,7 @@ app.post('/v1/chat/completions', async (req, res) => {
           max_tokens: 1
         }, {
           headers: { 'Authorization': `Bearer ${NIM_API_KEY}`, 'Content-Type': 'application/json' },
-          validateStatus: (status) => status < 500
+          validateStatus: (status) => status < 500,
           timeout: 10000 // 10s is fine for a quick probe
         }).then(res => {
           if (res.status >= 200 && res.status < 300) {
