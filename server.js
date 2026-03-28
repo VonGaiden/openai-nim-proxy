@@ -1,3 +1,6 @@
+// At the top, define a generous timeout
+const REQUEST_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+ 
 // server.js - OpenAI to NVIDIA NIM API Proxy
 const express = require('express');
 const cors = require('cors');
@@ -72,6 +75,7 @@ app.post('/v1/chat/completions', async (req, res) => {
         }, {
           headers: { 'Authorization': `Bearer ${NIM_API_KEY}`, 'Content-Type': 'application/json' },
           validateStatus: (status) => status < 500
+          timeout: 10000 // 10s is fine for a quick probe
         }).then(res => {
           if (res.status >= 200 && res.status < 300) {
             nimModel = model;
@@ -107,7 +111,8 @@ app.post('/v1/chat/completions', async (req, res) => {
         'Authorization': `Bearer ${NIM_API_KEY}`,
         'Content-Type': 'application/json'
       },
-      responseType: stream ? 'stream' : 'json'
+      responseType: stream ? 'stream' : 'json',
+      timeout: REQUEST_TIMEOUT_MS
     });
     
     if (stream) {
