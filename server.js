@@ -1,10 +1,10 @@
-// At the top, define a generous timeout
-const REQUEST_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
- 
 // server.js - OpenAI to NVIDIA NIM API Proxy
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+
+// At the top, define a generous timeout
+const REQUEST_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 const app = express();
 const PORT = process.env.PORT || 3000;
