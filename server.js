@@ -1,3 +1,8 @@
+if (!process.env.NIM_API_KEY) {
+  console.error('FATAL: NIM_API_KEY environment variable is not set');
+  process.exit(1);
+}
+
 // server.js - OpenAI to NVIDIA NIM API Proxy
 const express = require('express');
 const cors = require('cors');
