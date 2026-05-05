@@ -99,15 +99,29 @@ app.post('/v1/chat/completions', async (req, res) => {
         }
       }
     }
+
+    // Trim messages if conversation gets too long
+    function trimMessages(messages, maxMessages = 20) {
+      if (messages.length <= maxMessages) return messages;
+      
+      // Always keep the system message if present
+      const systemMessages = messages.filter(m => m.role === 'system');
+      const nonSystemMessages = messages.filter(m => m.role !== 'system');
+      
+      // Keep only the most recent messages
+      const trimmed = nonSystemMessages.slice(-maxMessages);
+      
+      return [...systemMessages, ...trimmed];
+    }
     
     // Transform OpenAI request to NIM format
+    const trimmedMessages = trimMessages(messages, 20);
     const nimRequest = {
-      model: nimModel,
-      messages: messages,
-      temperature: temperature || 0.6,
-      max_tokens: max_tokens || 9024,
-      extra_body: ENABLE_THINKING_MODE ? { chat_template_kwargs: { thinking: true } } : undefined,
-      stream: stream || false
+    model: nimModel,
+    messages: trimmedMessages, // 👈 use trimmed
+    temperature: temperature || 0.6,
+    max_tokens: max_tokens || 2048,
+    stream: false
     };
     
     // Make request to NVIDIA NIM API
