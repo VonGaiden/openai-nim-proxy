@@ -113,12 +113,36 @@ app.post('/v1/chat/completions', async (req, res) => {
       
       return [...systemMessages, ...trimmed];
     }
+
+    function sanitizeMessages(messages) {
+  const systemMessages = messages.filter(m => m.role === 'system');
+  let nonSystem = messages.filter(m => m.role !== 'system');
+
+  // Remove consecutive duplicate roles
+  const alternated = [nonSystem[0]];
+  for (let i = 1; i < nonSystem.length; i++) {
+    if (nonSystem[i].role !== alternated[alternated.length - 1].role) {
+      alternated.push(nonSystem[i]);
+    } else {
+      // Merge consecutive same-role messages
+      alternated[alternated.length - 1].content += '\n' + nonSystem[i].content;
+    }
+  }
+
+  // Gemma must start with user
+  if (alternated[0]?.role !== 'user') {
+    alternated.shift();
+  }
+
+  return [...systemMessages, ...alternated];
+    }
     
     // Transform OpenAI request to NIM format
     const trimmedMessages = trimMessages(messages, 20);
+    const sanitizedMessages = sanitizeMessages(trimmedMessages); // 👈 add this
     const nimRequest = {
     model: nimModel,
-    messages: trimmedMessages, // 👈 use trimmed
+    messages: sanitizedMessages,
     temperature: temperature || 0.6,
     max_tokens: max_tokens || 2048,
     stream: false
