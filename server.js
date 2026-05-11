@@ -118,20 +118,28 @@ app.post('/v1/chat/completions', async (req, res) => {
   const systemMessages = messages.filter(m => m.role === 'system');
   let nonSystem = messages.filter(m => m.role !== 'system');
 
-  // Remove consecutive duplicate roles
-  const alternated = [nonSystem[0]];
-  for (let i = 1; i < nonSystem.length; i++) {
-    if (nonSystem[i].role !== alternated[alternated.length - 1].role) {
-      alternated.push(nonSystem[i]);
-    } else {
-      // Merge consecutive same-role messages
+  if (nonSystem.length === 0) return systemMessages;
+
+  // Merge consecutive same-role messages
+  const alternated = [];
+  for (let i = 0; i < nonSystem.length; i++) {
+    if (alternated.length === 0) {
+      alternated.push({ ...nonSystem[i] });
+    } else if (nonSystem[i].role === alternated[alternated.length - 1].role) {
       alternated[alternated.length - 1].content += '\n' + nonSystem[i].content;
+    } else {
+      alternated.push({ ...nonSystem[i] });
     }
   }
 
-  // Gemma must start with user
-  if (alternated[0]?.role !== 'user') {
+  // Force start with user
+  while (alternated.length > 0 && alternated[0].role !== 'user') {
     alternated.shift();
+  }
+
+  // Force end with user (Gemma requirement)
+  while (alternated.length > 0 && alternated[alternated.length - 1].role !== 'user') {
+    alternated.pop();
   }
 
   return [...systemMessages, ...alternated];
