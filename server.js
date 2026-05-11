@@ -1,12 +1,12 @@
+const express = require('express');
+const cors = require('cors');
+const axios = require('axios');
+
+// NOW check for the key
 if (!process.env.NIM_API_KEY) {
   console.error('FATAL: NIM_API_KEY environment variable is not set');
   process.exit(1);
 }
-
-// server.js - OpenAI to NVIDIA NIM API Proxy
-const express = require('express');
-const cors = require('cors');
-const axios = require('axios');
 
 // At the top, define a generous timeout
 const REQUEST_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -38,6 +38,37 @@ const MODEL_MAPPING = {
   'claude-3-sonnet': 'openai/gpt-oss-20b',
   'gemini-pro': 'google/gemma-3n-e4b-it' 
 };
+
+// Place these BEFORE app.get('/health', ...)
+function trimMessages(messages, maxMessages = 20) {
+  if (messages.length <= maxMessages) return messages;
+  const systemMessages = messages.filter(m => m.role === 'system');
+  const nonSystemMessages = messages.filter(m => m.role !== 'system');
+  const trimmed = nonSystemMessages.slice(-maxMessages);
+  return [...systemMessages, ...trimmed];
+}
+
+function sanitizeMessages(messages) {
+  const systemMessages = messages.filter(m => m.role === 'system');
+  let nonSystem = messages.filter(m => m.role !== 'system');
+  if (nonSystem.length === 0) return systemMessages;
+  const alternated = [];
+  for (let i = 0; i < nonSystem.length; i++) {
+    if (alternated.length === 0) {
+      alternated.push({ ...nonSystem[i] });
+    } else if (nonSystem[i].role === alternated[alternated.length - 1].role) {
+      alternated[alternated.length - 1].content += '\n' + nonSystem[i].content;
+    } else {
+      alternated.push({ ...nonSystem[i] });
+    }
+  }
+  while (alternated.length > 0 && alternated[0].role !== 'user') alternated.shift();
+  while (alternated.length > 0 && alternated[alternated.length - 1].role !== 'user') alternated.pop();
+  return [...systemMessages, ...alternated];
+}
+
+// Then your routes start here
+app.get('/health', ...)
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -98,51 +129,6 @@ app.post('/v1/chat/completions', async (req, res) => {
           nimModel = 'meta/llama-3.1-8b-instruct';
         }
       }
-    }
-
-    // Trim messages if conversation gets too long
-    function trimMessages(messages, maxMessages = 20) {
-      if (messages.length <= maxMessages) return messages;
-      
-      // Always keep the system message if present
-      const systemMessages = messages.filter(m => m.role === 'system');
-      const nonSystemMessages = messages.filter(m => m.role !== 'system');
-      
-      // Keep only the most recent messages
-      const trimmed = nonSystemMessages.slice(-maxMessages);
-      
-      return [...systemMessages, ...trimmed];
-    }
-
-    function sanitizeMessages(messages) {
-  const systemMessages = messages.filter(m => m.role === 'system');
-  let nonSystem = messages.filter(m => m.role !== 'system');
-
-  if (nonSystem.length === 0) return systemMessages;
-
-  // Merge consecutive same-role messages
-  const alternated = [];
-  for (let i = 0; i < nonSystem.length; i++) {
-    if (alternated.length === 0) {
-      alternated.push({ ...nonSystem[i] });
-    } else if (nonSystem[i].role === alternated[alternated.length - 1].role) {
-      alternated[alternated.length - 1].content += '\n' + nonSystem[i].content;
-    } else {
-      alternated.push({ ...nonSystem[i] });
-    }
-  }
-
-  // Force start with user
-  while (alternated.length > 0 && alternated[0].role !== 'user') {
-    alternated.shift();
-  }
-
-  // Force end with user (Gemma requirement)
-  while (alternated.length > 0 && alternated[alternated.length - 1].role !== 'user') {
-    alternated.pop();
-  }
-
-  return [...systemMessages, ...alternated];
     }
     
     // Transform OpenAI request to NIM format
